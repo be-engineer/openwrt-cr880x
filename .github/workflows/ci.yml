@@ -2,6 +2,21 @@ name: CI
 
 on:
   workflow_dispatch:
+    inputs:
+      ssh_enabled:
+        description: 'SSH 到构建环境手动修改配置 (make menuconfig 等)'
+        required: false
+        default: false
+        type: boolean
+      use_saved_config:
+        description: '使用之前保存的 .config 配置文件'
+        required: false
+        default: false
+        type: boolean
+      saved_config_run_id:
+        description: '配置 artifact 的来源运行 ID (留空自动查找最新)'
+        required: false
+        type: string
   push:
 
 jobs:
@@ -40,6 +55,31 @@ jobs:
           rm -rf feeds/packages/lang/golang
           git clone https://github.com/sbwml/packages_lang_golang -b 22.x feeds/packages/lang/golang
 
+      - name: Download saved config
+        if: ${{ github.event_name == 'workflow_dispatch' && inputs.use_saved_config }}
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          RUN_ID="${{ inputs.saved_config_run_id || '' }}"
+
+          if [ -z "$RUN_ID" ]; then
+            echo "查找最新的 saved-config artifact..."
+            RUN_ID=$(gh api "/repos/${GITHUB_REPOSITORY}/actions/artifacts?name=saved-config&per_page=1" \
+              --jq '.artifacts[0].workflow_run.id')
+          fi
+
+          if [ -n "$RUN_ID" ] && [ "$RUN_ID" != "null" ]; then
+            echo "从运行 #$RUN_ID 下载配置"
+            gh run download "$RUN_ID" --name saved-config --dir .
+            if [ -f ".config" ]; then
+              echo "✅ 已下载之前保存的 .config"
+            else
+              echo "⚠️ 下载的 artifact 中未找到 .config"
+            fi
+          else
+            echo "未找到之前保存的配置，将使用默认配置"
+          fi
+
       # - name: CR880x Configure
       #   run: |
       #     cat <<EOF | sed -E 's/^  //' >.config
@@ -70,6 +110,19 @@ jobs:
       - name: Merge custom config
         run: |
           make defconfig
+
+      - name: 🔧 SSH debug (tmate)
+        if: ${{ github.event_name == 'workflow_dispatch' && inputs.ssh_enabled }}
+        uses: mxschmitt/action-tmate@v3
+        with:
+          limit-access-to-actor: true
+
+      - name: Save .config as artifact
+        uses: actions/upload-artifact@v3
+        with:
+          name: saved-config
+          path: .config
+          if-no-files-found: ignore
 
       - name: Download
         run: |
