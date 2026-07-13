@@ -12,7 +12,5 @@ src-git-full telephony https://github.com/openwrt/telephony.git^920fbc5c0a2e4bad
 # custom
 src-git kenzo https://github.com/kenzok8/openwrt-packages
 
-# passwall
-# https://github.com/xiaorouji/openwrt-passwall/discussions/1603
-src-git passwall_packages https://github.com/xiaorouji/openwrt-passwall-packages.git;main
-src-git passwall https://github.com/xiaorouji/openwrt-passwall.git;main
+# nikki (Mihomo transparent proxy)
+src-git nikki https://github.com/nikkinikki-org/OpenWrt-nikki.git
