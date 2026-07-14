@@ -1,4 +1,4 @@
-name: CI
+name: cr880x
 
 on:
   workflow_dispatch:
@@ -90,10 +90,9 @@ jobs:
 
             CONFIG_ATH11K_MEM_PROFILE_256M=y
 
-            CONFIG_IB=y
-            # CONFIG_IB_STANDALONE is not set
-            CONFIG_SDK=y
-            CONFIG_MAKE_TOOLCHAIN=y
+            # CONFIG_IB is not set
+            # CONFIG_SDK is not set
+            # CONFIG_MAKE_TOOLCHAIN is not set
 
             CONFIG_ALL_NONSHARED=y
             CONFIG_REPRODUCIBLE_DEBUG_INFO=y
@@ -147,12 +146,6 @@ jobs:
           name: bin-ipq50xx-arm
           path: bin/targets/ipq50xx/arm/*
 
-      - name: Upload dl to artifacts
-        uses: actions/upload-artifact@v4
-        with:
-          name: dl
-          path: dl/*
-
   gh-pages:
     needs: [build]
     runs-on: ubuntu-22.04
@@ -160,11 +153,23 @@ jobs:
       contents: write
     steps:
       - name: Checkout gh-pages
-        uses: actions/checkout@v4
-        with:
-          path: "gh-pages"
-          ref: "gh-pages"
-          fetch-depth: 0
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          if gh api "/repos/${GITHUB_REPOSITORY}/git/refs/heads/gh-pages" > /dev/null 2>&1; then
+            echo "gh-pages 分支已存在，开始检出"
+            git clone --depth=0 \
+              "https://github.com/${GITHUB_REPOSITORY}.git" \
+              -b gh-pages gh-pages
+          else
+            echo "gh-pages 分支不存在，创建空分支"
+            mkdir gh-pages
+            git -C gh-pages init -b gh-pages
+            git -C gh-pages config user.name 'github-actions[bot]'
+            git -C gh-pages config user.email 'github-actions[bot]@users.noreply.github.com'
+            git -C gh-pages commit --allow-empty -m "Initial gh-pages branch"
+            git -C gh-pages remote add origin "https://github.com/${GITHUB_REPOSITORY}.git"
+          fi
 
       - name: Configure the git user
         run: |
@@ -174,6 +179,12 @@ jobs:
       - name: Drop old versions
         run: |
           cd gh-pages
+          # 如果是新分支（只有1个commit），跳过清理旧版本
+          COMMIT_COUNT=$(git rev-list --count HEAD 2>/dev/null || echo "1")
+          if [ "$COMMIT_COUNT" -le 1 ]; then
+            echo "新分支，跳过清理旧版本"
+            exit 0
+          fi
           readarray -t old_version < <(git log --format='%h' -- "${GITHUB_REF_NAME}" | tail -n +10)
           GIT_SEQUENCE_EDITOR="sed -i '1 i break'" git rebase --interactive --committer-date-is-author-date --root
           for commit in "${old_version[@]}"; do
@@ -213,22 +224,11 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v4
 
-      - name: Download dl from artifacts
-        uses: actions/download-artifact@v4
-        with:
-          name: dl
-          path: dl/
-
       - name: Download bin from artifacts
         uses: actions/download-artifact@v4
         with:
           name: bin-ipq50xx-arm
           path: bin/targets/ipq50xx/arm/
-
-      - name: Tar
-        run: |
-          tar cvf dl.tar -C dl/ .
-          tar cvf bin-ipq50xx.tar -C bin/targets/ipq50xx/arm/ .
 
       - name: Generate release informations
         run: |
