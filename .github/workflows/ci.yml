@@ -159,7 +159,7 @@ jobs:
           if gh api "/repos/${GITHUB_REPOSITORY}/git/refs/heads/gh-pages" > /dev/null 2>&1; then
             echo "gh-pages 分支已存在，开始检出"
             git clone --depth=0 \
-              "https://github.com/${GITHUB_REPOSITORY}.git" \
+              "https://x-access-token:${GH_TOKEN}@github.com/${GITHUB_REPOSITORY}.git" \
               -b gh-pages gh-pages
           else
             echo "gh-pages 分支不存在，创建空分支"
@@ -168,7 +168,7 @@ jobs:
             git -C gh-pages config user.name 'github-actions[bot]'
             git -C gh-pages config user.email 'github-actions[bot]@users.noreply.github.com'
             git -C gh-pages commit --allow-empty -m "Initial gh-pages branch"
-            git -C gh-pages remote add origin "https://github.com/${GITHUB_REPOSITORY}.git"
+            git -C gh-pages remote add origin "https://x-access-token:${GH_TOKEN}@github.com/${GITHUB_REPOSITORY}.git"
           fi
 
       - name: Configure the git user
@@ -211,8 +211,11 @@ jobs:
           git commit -m "Add: ${GITHUB_REF_NAME}: $(cat ../bin/version.buildinfo)"
 
       - name: Publish
+        env:
+          GH_TOKEN: ${{ github.token }}
         run: |
           cd gh-pages
+          git remote set-url origin "https://x-access-token:${GH_TOKEN}@github.com/${GITHUB_REPOSITORY}.git"
           git push -f origin gh-pages
 
   release:
