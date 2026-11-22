@@ -102,8 +102,6 @@ jobs:
             CONFIG_PACKAGE_kmod-qca-nss-drv-pppoe=y
 
             CONFIG_PACKAGE_luci=y
-            CONFIG_PACKAGE_luci-app-nikki=y
-            CONFIG_PACKAGE_luci-i18n-nikki-zh-cn=y
           EOF
 
       - name: Merge custom config

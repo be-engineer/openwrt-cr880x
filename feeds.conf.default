@@ -13,4 +13,3 @@ src-git-full telephony https://github.com/openwrt/telephony.git^920fbc5c0a2e4bad
 src-git kenzo https://github.com/kenzok8/openwrt-packages
 
 # nikki (Mihomo transparent proxy)
-src-git nikki https://github.com/nikkinikki-org/OpenWrt-nikki.git
